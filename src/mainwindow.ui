@@ -14,11 +14,8 @@
    <string>MainWindow</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <layout class="QGridLayout" name="gridLayout_2" columnstretch="0,1,1">
+   <layout class="QGridLayout" name="gridLayout_2" rowstretch="0,0,1" columnstretch="0,1,1">
     <item row="0" column="0">
-     <widget class="QListWidget" name="listWidget"/>
-    </item>
-    <item row="1" column="0">
      <widget class="QGroupBox" name="enScrollArea">
       <property name="minimumSize">
        <size>
@@ -75,7 +72,41 @@
       </layout>
      </widget>
     </item>
-    <item row="2" column="0">
+    <item row="0" column="1" rowspan="3">
+     <widget class="QScrollArea" name="greenScrollArea">
+      <property name="widgetResizable">
+       <bool>true</bool>
+      </property>
+      <widget class="QWidget" name="scrollAreaWidgetContents">
+       <property name="geometry">
+        <rect>
+         <x>0</x>
+         <y>0</y>
+         <width>543</width>
+         <height>542</height>
+        </rect>
+       </property>
+      </widget>
+     </widget>
+    </item>
+    <item row="0" column="2" rowspan="3">
+     <widget class="QScrollArea" name="grayScrollArea">
+      <property name="widgetResizable">
+       <bool>true</bool>
+      </property>
+      <widget class="QWidget" name="scrollAreaWidgetContents_2">
+       <property name="geometry">
+        <rect>
+         <x>0</x>
+         <y>0</y>
+         <width>542</width>
+         <height>542</height>
+        </rect>
+       </property>
+      </widget>
+     </widget>
+    </item>
+    <item row="1" column="0">
      <widget class="QGroupBox" name="groupBox">
       <property name="title">
        <string>Player</string>
@@ -128,39 +159,8 @@
       </layout>
      </widget>
     </item>
-    <item row="0" column="1" rowspan="3">
-     <widget class="QScrollArea" name="greenScrollArea">
-      <property name="widgetResizable">
-       <bool>true</bool>
-      </property>
-      <widget class="QWidget" name="scrollAreaWidgetContents">
-       <property name="geometry">
-        <rect>
-         <x>0</x>
-         <y>0</y>
-         <width>543</width>
-         <height>542</height>
-        </rect>
-       </property>
-      </widget>
-     </widget>
-    </item>
-    <item row="0" column="2" rowspan="3">
-     <widget class="QScrollArea" name="grayScrollArea">
-      <property name="widgetResizable">
-       <bool>true</bool>
-      </property>
-      <widget class="QWidget" name="scrollAreaWidgetContents_2">
-       <property name="geometry">
-        <rect>
-         <x>0</x>
-         <y>0</y>
-         <width>542</width>
-         <height>542</height>
-        </rect>
-       </property>
-      </widget>
-     </widget>
+    <item row="2" column="0">
+     <widget class="QListWidget" name="listWidget"/>
     </item>
    </layout>
   </widget>
@@ -184,7 +184,6 @@
   </action>
  </widget>
  <tabstops>
-  <tabstop>listWidget</tabstop>
   <tabstop>xCoordinate</tabstop>
   <tabstop>yCoordinate</tabstop>
   <tabstop>greenScrollArea</tabstop>

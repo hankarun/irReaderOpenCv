@@ -137,6 +137,7 @@ void MainWindow::openFile(const QString &filename)
 
 void MainWindow::updateList()
 {
+    const int imgSize = 128;
     playerControl.stop();
     setCurrentFrameData(nullptr);
     ui->listWidget->clear();
@@ -145,8 +146,8 @@ void MainWindow::updateList()
     int frameNumber = 1;
     for (auto &frameData : project->data)
     {
-        QListWidgetItem *item = new QListWidgetItem(QString("%1 frame").arg(frameNumber++));
-        item->setData(Qt::DecorationRole, QPixmap::fromImage(frameData.green).scaled(64, 64));
+        QListWidgetItem *item = new QListWidgetItem(QString("Frame %1").arg(frameNumber++));
+        item->setData(Qt::DecorationRole, QPixmap::fromImage(frameData.gray).scaled(imgSize, imgSize));
         ui->listWidget->addItem(item);
     }
     playerControl.maxFrame = project->data.size();
@@ -193,6 +194,14 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
             return false;
         int posX = mouseEvent->pos().x() - 5;
         int posY = mouseEvent->pos().y() - 5;
+        setPosition(posX, posY);
+    }else     if (event->type() == QEvent::MouseButtonPress)
+    {
+        QMouseEvent *mouseEvent = static_cast<QMouseEvent *>(event);
+        if (mouseEvent->pos().x() < 0 || mouseEvent->pos().y() < 0)
+            return false;
+        int posX = mouseEvent->pos().x();
+        int posY = mouseEvent->pos().y();
         setPosition(posX, posY);
     }
     return false;
