@@ -8,18 +8,35 @@
 #include <QRgb>
 #include <QMimeData>
 #include <QPainter>
+#include <QVBoxLayout>
+#include <QScrollBar>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-    setWindowTitle("IR Data Parser");
+    setWindowTitle("IR Data Analyser");
 
     green = new PictureLabel(this);
-    ui->gridLayout->addWidget(green, 0, 1, 2, 1);
+    QWidget *greenScrollWidget = new QWidget();
+    QVBoxLayout *layout1 = new QVBoxLayout();
+    layout1->addWidget(green);
+    greenScrollWidget->setLayout(layout1);
+    ui->greenScrollArea->setWidget(green);
 
     gray = new PictureLabel(this);
-    ui->gridLayout->addWidget(gray, 0, 2, 2, 1);
+    QWidget *grayScrollWidget = new QWidget();
+    QVBoxLayout *layout2 = new QVBoxLayout();
+    layout2->addWidget(gray);
+    grayScrollWidget->setLayout(layout2);
+    ui->grayScrollArea->setWidget(grayScrollWidget);
+
+    connect(ui->greenScrollArea->horizontalScrollBar(), &QScrollBar::valueChanged, ui->grayScrollArea->horizontalScrollBar(), &QScrollBar::setValue);
+    connect(ui->greenScrollArea->verticalScrollBar(), &QScrollBar::valueChanged, ui->grayScrollArea->verticalScrollBar(), &QScrollBar::setValue);
+
+    connect(ui->grayScrollArea->horizontalScrollBar(), &QScrollBar::valueChanged, ui->greenScrollArea->horizontalScrollBar(), &QScrollBar::setValue);
+    connect(ui->grayScrollArea->verticalScrollBar(), &QScrollBar::valueChanged, ui->greenScrollArea->verticalScrollBar(), &QScrollBar::setValue);
+
     ui->gridLayout->setColumnStretch(1, 1);
     ui->gridLayout->setColumnStretch(2, 1);
 
@@ -59,7 +76,7 @@ MainWindow::~MainWindow()
 
 void MainWindow::onOpenAction()
 {
-    auto filename = QFileDialog::getOpenFileName(this, tr("Select Avi File"), "", "Avi files (*.avi);;PNG files (*.png)");
+    auto filename = QFileDialog::getOpenFileName(this, tr("Select Avi File"), "", "Avi files (*.avi)");
     if (filename.isEmpty())
         return;
     openFile(filename);
@@ -185,10 +202,14 @@ void MainWindow::dropEvent(QDropEvent *event)
 
             project = new Project();
 
-            cv::Mat data = cv::imread(filename.toStdString().c_str(), cv::IMREAD_COLOR);
-            FrameData frameData;
-            frameData.set(data);
-            project->data.push_back(frameData);
+            for (auto &file : urlList)
+            {
+                cv::Mat data = cv::imread(file.toLocalFile().toStdString().c_str(), cv::IMREAD_COLOR);
+                FrameData frameData;
+                frameData.set(data);
+                project->data.push_back(frameData);
+            }
+
             updateList();
         }
     }
@@ -220,6 +241,7 @@ void PictureLabel::paintEvent(QPaintEvent *e)
     painter.drawPoint(x, y);
     QFont font = painter.font();
     font.setPointSize(font.pointSize() * 2);
+    painter.setFont(font);
     painter.drawText(x + 15, y + 5, QString::number(value));
     painter.drawEllipse(x - 5, y - 5, 10, 10);
 }
