@@ -199,7 +199,7 @@
   </widget>
   <action name="actionOpen">
    <property name="text">
-    <string>Open</string>
+    <string>Open Avi</string>
    </property>
   </action>
  </widget>

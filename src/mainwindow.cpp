@@ -106,12 +106,7 @@ void MainWindow::onOpenAction()
 
 void MainWindow::openFile(const QString &filename)
 {
-    if (project)
-    {
-        delete project;
-    }
-
-    project = new Project();
+    project = std::make_unique<Project>();
 
     cv::VideoCapture cap(filename.toStdString().c_str());
 
@@ -306,12 +301,7 @@ void MainWindow::dropEvent(QDropEvent *event)
         }
         else if (fileInfo.suffix() == "png")
         {
-            if (project)
-            {
-                delete project;
-            }
-
-            project = new Project();
+            project = std::unique_ptr<Project>();
 
             for (auto &file : urlList)
             {

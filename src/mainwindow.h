@@ -99,7 +99,7 @@ protected:
     void setScaleFactor(float value);
 private:
     Ui::MainWindow *ui;
-    Project *project = nullptr;
+    std::unique_ptr<Project> project;
     PictureLabel *green;
     PictureLabel *gray;
     int currentX = 0;
