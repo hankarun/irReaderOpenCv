@@ -10,12 +10,15 @@
 
 struct FrameData
 {
+    //BGR
     cv::Mat frameData;
+    //RGB
     cv::Mat frameShortData;
+    cv::Mat ushortData;
     QImage green;
     QImage gray;
 
-    void set(const cv::Mat& data);
+    void set(const cv::Mat &data);
 };
 
 struct Project
@@ -42,9 +45,34 @@ protected:
     void paintEvent(QPaintEvent *) override;
 
 private:
-    int x = 0;
-    int y = 0;
+    int x = -10;
+    int y = -10;
     int value = 0;
+};
+
+class PlayerControl : public QObject
+{
+    Q_OBJECT
+public:
+    PlayerControl(QObject *parent = nullptr);
+
+    int frameRate;
+    int currentFrame;
+    int maxFrame;
+    int loop;
+
+    void start();
+    void stop();
+
+private:
+    void timerEvent(QTimerEvent *);
+signals:
+    void frameChanged(int index);
+    void started();
+    void stopped();
+
+private:
+    int timerId;
 };
 
 class MainWindow : public QMainWindow
@@ -60,17 +88,24 @@ public:
     void openFile(const QString &filename);
 
     void updateList();
+
 protected:
     bool eventFilter(QObject *obj, QEvent *event);
     void dropEvent(QDropEvent *event) override;
     void dragEnterEvent(QDragEnterEvent *event) override;
+    void setPosition(int x, int y);
+
+    void setCurrentFrameData(FrameData *frameData);
 
 private:
     Ui::MainWindow *ui;
     Project *project = nullptr;
-    PictureLabel* green;
-    PictureLabel* gray;
+    PictureLabel *green;
+    PictureLabel *gray;
+    int currentX = 0;
+    int currentY = 0;
+    FrameData *currentFrameData;
+    PlayerControl playerControl;
 };
-
 
 #endif // MAINWINDOW_H

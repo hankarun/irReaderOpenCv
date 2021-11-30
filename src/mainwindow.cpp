@@ -8,28 +8,19 @@
 #include <QRgb>
 #include <QMimeData>
 #include <QPainter>
-#include <QVBoxLayout>
 #include <QScrollBar>
 
 MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent), ui(new Ui::MainWindow)
+    : QMainWindow(parent), ui(new Ui::MainWindow), currentFrameData(nullptr)
 {
     ui->setupUi(this);
     setWindowTitle("IR Data Analyser");
 
-    green = new PictureLabel(this);
-    QWidget *greenScrollWidget = new QWidget();
-    QVBoxLayout *layout1 = new QVBoxLayout();
-    layout1->addWidget(green);
-    greenScrollWidget->setLayout(layout1);
+    green = new PictureLabel(ui->grayScrollArea);
     ui->greenScrollArea->setWidget(green);
 
-    gray = new PictureLabel(this);
-    QWidget *grayScrollWidget = new QWidget();
-    QVBoxLayout *layout2 = new QVBoxLayout();
-    layout2->addWidget(gray);
-    grayScrollWidget->setLayout(layout2);
-    ui->grayScrollArea->setWidget(grayScrollWidget);
+    gray = new PictureLabel(ui->grayScrollArea);
+    ui->grayScrollArea->setWidget(gray);
 
     connect(ui->greenScrollArea->horizontalScrollBar(), &QScrollBar::valueChanged, ui->grayScrollArea->horizontalScrollBar(), &QScrollBar::setValue);
     connect(ui->greenScrollArea->verticalScrollBar(), &QScrollBar::valueChanged, ui->grayScrollArea->verticalScrollBar(), &QScrollBar::setValue);
@@ -46,27 +37,54 @@ MainWindow::MainWindow(QWidget *parent)
             {
                 auto selectedItems = ui->listWidget->selectedItems();
                 if (selectedItems.empty())
+                {
+                    setCurrentFrameData(nullptr);
                     return;
+                }
                 if (!project)
+                {
+                    setCurrentFrameData(nullptr);
                     return;
-                const auto &frameData = project->data.at(ui->listWidget->row(selectedItems.at(0)));
-                auto image = frameData.green;
-                green->setMaximumHeight(image.height());
-                green->setMaximumWidth(image.width());
-                green->setPixmap(QPixmap::fromImage(image));
-
-                auto grayScale = frameData.gray;
-                gray->setMaximumHeight(grayScale.height());
-                gray->setMaximumWidth(grayScale.width());
-                gray->setPixmap(QPixmap::fromImage(grayScale));
-
-                gray->setPoiData(0, 0, 0);
-                green->setPoiData(0, 0, 0);
+                }
+                setCurrentFrameData(&project->data.at(ui->listWidget->row(selectedItems.at(0))));
             });
 
     green->installEventFilter(this);
     gray->installEventFilter(this);
     setAcceptDrops(true);
+
+    connect(ui->xCoordinate, qOverload<int>(&QSpinBox::valueChanged), this, [this]()
+            { setPosition(ui->xCoordinate->value(), ui->yCoordinate->value()); });
+    connect(ui->yCoordinate, qOverload<int>(&QSpinBox::valueChanged), this, [this]()
+            { setPosition(ui->xCoordinate->value(), ui->yCoordinate->value()); });
+
+    connect(&playerControl, &PlayerControl::started, [this]()
+            {
+                ui->playButton->setEnabled(false);
+                ui->stopButton->setEnabled(true);
+                ui->loop->setEnabled(false);
+                ui->frameRate->setEnabled(false);
+                ui->listWidget->setEnabled(false);
+            });
+    connect(&playerControl, &PlayerControl::stopped, [this]()
+            {
+                ui->playButton->setEnabled(true);
+                ui->stopButton->setEnabled(false);
+                ui->loop->setEnabled(true);
+                ui->frameRate->setEnabled(true);
+                ui->listWidget->setEnabled(true);
+            });
+    connect(ui->playButton, &QPushButton::clicked, &playerControl, &PlayerControl::start);
+    connect(ui->stopButton, &QPushButton::clicked, &playerControl, &PlayerControl::stop);
+
+    connect(&playerControl, &PlayerControl::frameChanged, this, [this](int index)
+            { ui->listWidget->setCurrentRow(index); });
+
+    connect(ui->loop, &QCheckBox::stateChanged, this, [this]()
+            { playerControl.loop = ui->loop->isChecked(); });
+
+    connect(ui->frameRate, qOverload<int>(&QSpinBox::valueChanged), this, [this]()
+            { playerControl.frameRate = ui->frameRate->value(); });
 }
 
 MainWindow::~MainWindow()
@@ -119,6 +137,8 @@ void MainWindow::openFile(const QString &filename)
 
 void MainWindow::updateList()
 {
+    playerControl.stop();
+    setCurrentFrameData(nullptr);
     ui->listWidget->clear();
     if (!project)
         return;
@@ -129,12 +149,15 @@ void MainWindow::updateList()
         item->setData(Qt::DecorationRole, QPixmap::fromImage(frameData.green).scaled(64, 64));
         ui->listWidget->addItem(item);
     }
+    playerControl.maxFrame = project->data.size();
 }
 
 void FrameData::set(const cv::Mat &data)
 {
     frameData = data;
     frameShortData = cv::Mat(cv::Size(frameData.cols, frameData.rows), CV_8U);
+    ushortData = cv::Mat(cv::Size(frameData.cols, frameData.rows), CV_16U);
+
     for (int r = 0; r < frameData.rows; ++r)
     {
         for (int c = 0; c < frameData.cols; ++c)
@@ -142,40 +165,87 @@ void FrameData::set(const cv::Mat &data)
             int value = 0;
             value = frameData.at<cv::Vec3b>(r, c)[2] << 8;
             value |= frameData.at<cv::Vec3b>(r, c)[1];
-            unsigned char charValue = (value / 15000.0f) * 255.0f;
-            frameShortData.at<unsigned char>(r, c) = charValue;
+            ushortData.at<unsigned short>(r, c) = value;
+        }
+    }
+
+    double min, max;
+    cv::minMaxLoc(ushortData, &min, &max);
+
+    for (int r = 0; r < frameData.rows; ++r)
+    {
+        for (int c = 0; c < frameData.cols; ++c)
+        {
+            frameShortData.at<unsigned char>(r, c) = ((ushortData.at<unsigned short>(r, c) - min) / (max - min)) * 255.0f;
         }
     }
 
     gray = QImage((uchar *)frameShortData.data, frameShortData.cols, frameShortData.rows, QImage::Format_Grayscale8);
-    green = QImage((uchar *)frameData.data, frameData.cols, frameData.rows, QImage::Format_RGB888);
+    green = QImage((uchar *)frameData.data, frameData.cols, frameData.rows, QImage::Format_BGR888);
 }
 
 bool MainWindow::eventFilter(QObject *obj, QEvent *event)
 {
-    if (!project)
-        return false;
     if (event->type() == QEvent::MouseMove)
     {
-
         QMouseEvent *mouseEvent = static_cast<QMouseEvent *>(event);
         if (mouseEvent->pos().x() < 0 || mouseEvent->pos().y() < 0)
             return false;
         int posX = mouseEvent->pos().x() - 5;
         int posY = mouseEvent->pos().y() - 5;
-        ui->xCoordinate->setText(QString::number(posX));
-        ui->yCoordinate->setText(QString::number(posY));
-        auto image = green->pixmap()->toImage();
-        QRgb pixel = image.pixel(posX, posY);
-        unsigned short value = 0;
-        value = (qBlue(pixel) << 8);
-        value |= (qGreen(pixel) & 0x0F);
-        ui->value->setText(QString::number(value));
-
-        green->setPoiData(posX, posY, value);
-        gray->setPoiData(posX, posY, value);
+        setPosition(posX, posY);
     }
     return false;
+}
+
+void MainWindow::setPosition(int x, int y)
+{
+    if (!project)
+        return;
+
+    if (x == currentX && y == currentY)
+        return;
+
+    if (!currentFrameData)
+        return;
+
+    ui->xCoordinate->setValue(x);
+    ui->yCoordinate->setValue(y);
+    auto image = green->pixmap()->toImage();
+    QRgb pixel = image.pixel(x, y);
+    unsigned short value = 0;
+    value = (qRed(pixel) << 8);
+    value |= (qGreen(pixel) & 0x0F);
+    ui->value->setText(QString::number(value));
+    green->setPoiData(x, y, value);
+    gray->setPoiData(x, y, value);
+
+    currentX = x;
+    currentY = y;
+}
+
+void MainWindow::setCurrentFrameData(FrameData *frameData)
+{
+    if (frameData)
+    {
+        auto image = frameData->green;
+        green->setMaximumHeight(image.height());
+        green->setMaximumWidth(image.width());
+        green->setPixmap(QPixmap::fromImage(image));
+
+        auto grayScale = frameData->gray;
+        gray->setMaximumHeight(image.height());
+        gray->setMaximumWidth(image.width());
+        gray->setPixmap(QPixmap::fromImage(grayScale));
+    }
+    else
+    {
+        green->setPixmap(QPixmap());
+        gray->setPixmap(QPixmap());
+    }
+    gray->setPoiData(-10, -10, 0);
+    green->setPoiData(-10, -10, 0);
+    currentFrameData = frameData;
 }
 
 void MainWindow::dropEvent(QDropEvent *event)
@@ -244,4 +314,46 @@ void PictureLabel::paintEvent(QPaintEvent *e)
     painter.setFont(font);
     painter.drawText(x + 15, y + 5, QString::number(value));
     painter.drawEllipse(x - 5, y - 5, 10, 10);
+}
+
+PlayerControl::PlayerControl(QObject *parent)
+    : QObject(parent), frameRate(1), currentFrame(0), maxFrame(0), loop(0)
+{
+}
+
+void PlayerControl::start()
+{
+    if (currentFrame >= maxFrame)
+    {
+        currentFrame = 0;
+    }
+    timerId = startTimer(1.0 / frameRate * 1000.0);
+    emit started();
+    emit frameChanged(currentFrame);
+}
+
+void PlayerControl::stop()
+{
+    killTimer(timerId);
+    emit stopped();
+}
+
+void PlayerControl::timerEvent(QTimerEvent *)
+{
+    currentFrame++;
+    if (currentFrame >= maxFrame)
+    {
+        if (loop)
+        {
+            currentFrame = 0;
+        }
+        else
+        {
+            stop();
+        }
+    }
+    else
+    {
+        emit frameChanged(currentFrame);
+    }
 }
