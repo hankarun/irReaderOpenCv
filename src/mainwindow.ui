@@ -14,15 +14,11 @@
    <string>MainWindow</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <layout class="QGridLayout" name="gridLayout_3" columnstretch="0,1,1,0">
-    <item row="0" column="1">
-     <widget class="QLabel" name="green">
-      <property name="text">
-       <string/>
-      </property>
-     </widget>
+   <layout class="QGridLayout" name="gridLayout">
+    <item row="0" column="0">
+     <widget class="QListWidget" name="listWidget"/>
     </item>
-    <item row="0" column="3">
+    <item row="1" column="0">
      <widget class="QGroupBox" name="groupBox">
       <property name="minimumSize">
        <size>
@@ -77,16 +73,6 @@
         </widget>
        </item>
       </layout>
-     </widget>
-    </item>
-    <item row="0" column="0">
-     <widget class="QListWidget" name="listWidget"/>
-    </item>
-    <item row="0" column="2">
-     <widget class="QLabel" name="grayScale">
-      <property name="text">
-       <string/>
-      </property>
      </widget>
     </item>
    </layout>
