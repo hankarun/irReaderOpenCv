@@ -96,7 +96,7 @@ protected:
     void setPosition(int x, int y);
 
     void setCurrentFrameData(FrameData *frameData);
-
+    void setScaleFactor(float value);
 private:
     Ui::MainWindow *ui;
     Project *project = nullptr;
@@ -106,6 +106,7 @@ private:
     int currentY = 0;
     FrameData *currentFrameData;
     PlayerControl playerControl;
+    float scaleFactor = 1.0;
 };
 
 #endif // MAINWINDOW_H

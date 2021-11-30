@@ -85,6 +85,10 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(ui->frameRate, qOverload<int>(&QSpinBox::valueChanged), this, [this]()
             { playerControl.frameRate = ui->frameRate->value(); });
+
+    connect(ui->scaleSpin, qOverload<double>(&QDoubleSpinBox::valueChanged), this, [this](double value){
+        this->setScaleFactor(value);
+    });
 }
 
 MainWindow::~MainWindow()
@@ -195,7 +199,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
         int posX = mouseEvent->pos().x() - 5;
         int posY = mouseEvent->pos().y() - 5;
         setPosition(posX, posY);
-    }else     if (event->type() == QEvent::MouseButtonPress)
+    }else if (event->type() == QEvent::MouseButtonPress)
     {
         QMouseEvent *mouseEvent = static_cast<QMouseEvent *>(event);
         if (mouseEvent->pos().x() < 0 || mouseEvent->pos().y() < 0)
@@ -203,6 +207,23 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
         int posX = mouseEvent->pos().x();
         int posY = mouseEvent->pos().y();
         setPosition(posX, posY);
+    }else if (event->type() == QEvent::Wheel)    
+    {
+        if (QApplication::keyboardModifiers() & Qt::ControlModifier)
+        {
+            QWheelEvent *wheelEvent = static_cast<QWheelEvent *>(event);
+            const int delta = wheelEvent->delta();   
+            if (delta > 0)
+            {
+                scaleFactor += 0.2;
+            }else
+            {
+                scaleFactor -= 0.2;
+            }
+            scaleFactor = std::max(1.0f, scaleFactor);
+            scaleFactor = std::min(5.0f, scaleFactor);
+            setScaleFactor(scaleFactor);
+        }
     }
     return false;
 }
@@ -233,19 +254,30 @@ void MainWindow::setPosition(int x, int y)
     currentY = y;
 }
 
+void MainWindow::setScaleFactor(float value)
+{
+    ui->scaleSpin->setValue(value);
+    this->scaleFactor = value;
+    setCurrentFrameData(currentFrameData);
+}
+
 void MainWindow::setCurrentFrameData(FrameData *frameData)
 {
     if (frameData)
     {
         auto image = frameData->green;
-        green->setMaximumHeight(image.height());
-        green->setMaximumWidth(image.width());
-        green->setPixmap(QPixmap::fromImage(image));
+
+        int height = image.height()* scaleFactor;
+        int width = image.width()* scaleFactor;
+
+        green->setMaximumHeight(height);
+        green->setMaximumWidth(width);
+        green->setPixmap(QPixmap::fromImage(image).scaled(width, height));
 
         auto grayScale = frameData->gray;
-        gray->setMaximumHeight(image.height());
-        gray->setMaximumWidth(image.width());
-        gray->setPixmap(QPixmap::fromImage(grayScale));
+        gray->setMaximumHeight(height);
+        gray->setMaximumWidth(width);
+        gray->setPixmap(QPixmap::fromImage(grayScale).scaled(width, height));
     }
     else
     {
