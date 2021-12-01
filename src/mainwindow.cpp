@@ -55,6 +55,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(ui->xCoordinate, qOverload<int>(&QSpinBox::valueChanged), this, [this]()
             { setPosition(ui->xCoordinate->value(), ui->yCoordinate->value()); });
+            
     connect(ui->yCoordinate, qOverload<int>(&QSpinBox::valueChanged), this, [this]()
             { setPosition(ui->xCoordinate->value(), ui->yCoordinate->value()); });
 
@@ -66,6 +67,7 @@ MainWindow::MainWindow(QWidget *parent)
                 ui->frameRate->setEnabled(false);
                 ui->listWidget->setEnabled(false);
             });
+
     connect(&playerControl, &PlayerControl::stopped, [this]()
             {
                 ui->playButton->setEnabled(true);
@@ -74,6 +76,7 @@ MainWindow::MainWindow(QWidget *parent)
                 ui->frameRate->setEnabled(true);
                 ui->listWidget->setEnabled(true);
             });
+
     connect(ui->playButton, &QPushButton::clicked, &playerControl, &PlayerControl::start);
     connect(ui->stopButton, &QPushButton::clicked, &playerControl, &PlayerControl::stop);
 
@@ -86,9 +89,8 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->frameRate, qOverload<int>(&QSpinBox::valueChanged), this, [this]()
             { playerControl.frameRate = ui->frameRate->value(); });
 
-    connect(ui->scaleSpin, qOverload<double>(&QDoubleSpinBox::valueChanged), this, [this](double value){
-        this->setScaleFactor(value);
-    });
+    connect(ui->scaleSpin, qOverload<double>(&QDoubleSpinBox::valueChanged), this, [this](double value)
+            { this->setScaleFactor(value); });
 }
 
 MainWindow::~MainWindow()
@@ -107,30 +109,7 @@ void MainWindow::onOpenAction()
 void MainWindow::openFile(const QString &filename)
 {
     project = std::make_unique<Project>();
-
-    cv::VideoCapture cap(filename.toStdString().c_str());
-
-    if (!cap.isOpened())
-    {
-        qDebug() << "Error opening video stream or file";
-        return;
-    }
-
-    int frameNumber = 1;
-    while (1)
-    {
-        FrameData frameData;
-        cv::Mat data;
-        cap >> data;
-
-        if (data.empty())
-            break;
-
-        frameData.set(data);
-
-        project->data.push_back(frameData);
-    }
-    cap.release();
+    project->loadFromAvi(filename.toStdString().c_str());
     updateList();
 }
 
@@ -184,6 +163,44 @@ void FrameData::set(const cv::Mat &data)
     green = QImage((uchar *)frameData.data, frameData.cols, frameData.rows, QImage::Format_BGR888);
 }
 
+void Project::loadFromAvi(const char *filename)
+{
+    cv::VideoCapture cap(filename);
+
+    if (!cap.isOpened())
+    {
+        qDebug() << "Error opening video stream or file";
+        return;
+    }
+
+    int frameNumber = 1;
+    while (1)
+    {
+        FrameData frameData;
+        cv::Mat data;
+        cap >> data;
+
+        if (data.empty())
+            break;
+
+        frameData.set(data);
+
+        this->data.push_back(frameData);
+    }
+    cap.release();
+}
+
+void Project::loadFromPng(const std::vector<QString> &filenames)
+{
+    for (auto &file : filenames)
+    {
+        cv::Mat data = cv::imread(file.toStdString().c_str(), cv::IMREAD_COLOR);
+        FrameData frameData;
+        frameData.set(data);
+        this->data.push_back(frameData);
+    }
+}
+
 bool MainWindow::eventFilter(QObject *obj, QEvent *event)
 {
     if (event->type() == QEvent::MouseMove)
@@ -194,7 +211,8 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
         int posX = mouseEvent->pos().x() - 5;
         int posY = mouseEvent->pos().y() - 5;
         setPosition(posX, posY);
-    }else if (event->type() == QEvent::MouseButtonPress)
+    }
+    else if (event->type() == QEvent::MouseButtonPress)
     {
         QMouseEvent *mouseEvent = static_cast<QMouseEvent *>(event);
         if (mouseEvent->pos().x() < 0 || mouseEvent->pos().y() < 0)
@@ -202,16 +220,18 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
         int posX = mouseEvent->pos().x();
         int posY = mouseEvent->pos().y();
         setPosition(posX, posY);
-    }else if (event->type() == QEvent::Wheel)    
+    }
+    else if (event->type() == QEvent::Wheel)
     {
         if (QApplication::keyboardModifiers() & Qt::ControlModifier)
         {
             QWheelEvent *wheelEvent = static_cast<QWheelEvent *>(event);
-            const int delta = wheelEvent->delta();   
+            const int delta = wheelEvent->delta();
             if (delta > 0)
             {
                 scaleFactor += 0.2;
-            }else
+            }
+            else
             {
                 scaleFactor -= 0.2;
             }
@@ -262,8 +282,8 @@ void MainWindow::setCurrentFrameData(FrameData *frameData)
     {
         auto image = frameData->green;
 
-        int height = image.height()* scaleFactor;
-        int width = image.width()* scaleFactor;
+        int height = image.height() * scaleFactor;
+        int width = image.width() * scaleFactor;
 
         green->setMaximumHeight(height);
         green->setMaximumWidth(width);
@@ -301,16 +321,14 @@ void MainWindow::dropEvent(QDropEvent *event)
         }
         else if (fileInfo.suffix() == "png")
         {
-            project = std::unique_ptr<Project>();
+            project = std::make_unique<Project>();
 
+            std::vector<QString> files;
             for (auto &file : urlList)
             {
-                cv::Mat data = cv::imread(file.toLocalFile().toStdString().c_str(), cv::IMREAD_COLOR);
-                FrameData frameData;
-                frameData.set(data);
-                project->data.push_back(frameData);
+                files.push_back(file.toLocalFile());
             }
-
+            project->loadFromPng(files);
             updateList();
         }
     }

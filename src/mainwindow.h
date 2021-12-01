@@ -4,9 +4,9 @@
 #include <QMainWindow>
 #include <QLabel>
 
-#include <vector>
-
 #include <opencv2/opencv.hpp>
+
+#include <vector>
 
 struct FrameData
 {
@@ -24,6 +24,8 @@ struct FrameData
 struct Project
 {
     std::vector<FrameData> data;
+    void loadFromAvi(const char* filenanme);
+    void loadFromPng(const std::vector<QString>& filenames);
 };
 
 QT_BEGIN_NAMESPACE
