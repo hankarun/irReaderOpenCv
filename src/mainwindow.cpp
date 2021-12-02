@@ -55,7 +55,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(ui->xCoordinate, qOverload<int>(&QSpinBox::valueChanged), this, [this]()
             { setPosition(ui->xCoordinate->value(), ui->yCoordinate->value()); });
-            
+
     connect(ui->yCoordinate, qOverload<int>(&QSpinBox::valueChanged), this, [this]()
             { setPosition(ui->xCoordinate->value(), ui->yCoordinate->value()); });
 
@@ -91,6 +91,29 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(ui->scaleSpin, qOverload<double>(&QDoubleSpinBox::valueChanged), this, [this](double value)
             { this->setScaleFactor(value); });
+
+    connect(ui->minRadians, qOverload<int>(&QSpinBox::valueChanged), this, [this]()
+            {
+                if (!currentFrameData)
+                    return;
+                currentFrameData->setMinMax(ui->minRadians->value(), ui->maxRadians->value());
+                updateGrayTexture(currentFrameData);
+            });
+    connect(ui->maxRadians, qOverload<int>(&QSpinBox::valueChanged), this, [this]()
+            {
+                if (!currentFrameData)
+                    return;
+                currentFrameData->setMinMax(ui->minRadians->value(), ui->maxRadians->value());
+                updateGrayTexture(currentFrameData);
+            });
+    connect(ui->reset, &QToolButton::clicked, this, [this]()
+            {
+                if (!currentFrameData)
+                    return;
+                currentFrameData->resetMinMax();
+                ui->minRadians->setValue(currentFrameData->minValue);
+                ui->maxRadians->setValue(currentFrameData->maxValue);
+            });
 }
 
 MainWindow::~MainWindow()
@@ -111,6 +134,7 @@ void MainWindow::openFile(const QString &filename)
     project = std::make_unique<Project>();
     project->loadFromAvi(filename.toStdString().c_str());
     updateList();
+    setWindowTitle(tr("IR Data Analyser (%1)").arg(QFileInfo(filename).fileName()));
 }
 
 void MainWindow::updateList()
@@ -131,6 +155,18 @@ void MainWindow::updateList()
     playerControl.maxFrame = project->data.size();
 }
 
+void MainWindow::updateGrayTexture(FrameData *frameData)
+{
+    if (!frameData)
+        return;
+    auto grayScale = frameData->gray;
+    int height = grayScale.height() * scaleFactor;
+    int width = grayScale.width() * scaleFactor;
+    gray->setMaximumHeight(height);
+    gray->setMaximumWidth(width);
+    gray->setPixmap(QPixmap::fromImage(grayScale).scaled(width, height));
+}
+
 void FrameData::set(const cv::Mat &data)
 {
     frameData = data;
@@ -148,19 +184,28 @@ void FrameData::set(const cv::Mat &data)
         }
     }
 
-    double min, max;
-    cv::minMaxLoc(ushortData, &min, &max);
+    resetMinMax();
 
+    gray = QImage((uchar *)frameShortData.data, frameShortData.cols, frameShortData.rows, QImage::Format_Grayscale8);
+    green = QImage((uchar *)frameData.data, frameData.cols, frameData.rows, QImage::Format_BGR888);
+}
+
+void FrameData::resetMinMax()
+{
+    cv::minMaxLoc(ushortData, &minValue, &maxValue);
+    setMinMax(minValue, maxValue);
+}
+void FrameData::setMinMax(double min, double max)
+{
+    minValue = min;
+    maxValue = max;
     for (int r = 0; r < frameData.rows; ++r)
     {
         for (int c = 0; c < frameData.cols; ++c)
         {
-            frameShortData.at<unsigned char>(r, c) = ((ushortData.at<unsigned short>(r, c) - min) / (max - min)) * 255.0f;
+            frameShortData.at<unsigned char>(r, c) = ((ushortData.at<unsigned short>(r, c) - minValue) / (maxValue - minValue)) * 255.0f;
         }
     }
-
-    gray = QImage((uchar *)frameShortData.data, frameShortData.cols, frameShortData.rows, QImage::Format_Grayscale8);
-    green = QImage((uchar *)frameData.data, frameData.cols, frameData.rows, QImage::Format_BGR888);
 }
 
 void Project::loadFromAvi(const char *filename)
@@ -289,15 +334,19 @@ void MainWindow::setCurrentFrameData(FrameData *frameData)
         green->setMaximumWidth(width);
         green->setPixmap(QPixmap::fromImage(image).scaled(width, height));
 
-        auto grayScale = frameData->gray;
-        gray->setMaximumHeight(height);
-        gray->setMaximumWidth(width);
-        gray->setPixmap(QPixmap::fromImage(grayScale).scaled(width, height));
+        updateGrayTexture(frameData);
+
+        currentFrameData = nullptr;
+        ui->minRadians->setValue(frameData->minValue);
+        ui->maxRadians->setValue(frameData->maxValue);
+        currentFrameData = frameData;
     }
     else
     {
         green->setPixmap(QPixmap());
         gray->setPixmap(QPixmap());
+        ui->minRadians->setValue(0);
+        ui->maxRadians->setValue(65535);
     }
     gray->setPoiData(-10, -10, 0);
     green->setPoiData(-10, -10, 0);
@@ -330,6 +379,7 @@ void MainWindow::dropEvent(QDropEvent *event)
             }
             project->loadFromPng(files);
             updateList();
+            setWindowTitle(tr("IR Data Analyser (PNG)"));
         }
     }
 }

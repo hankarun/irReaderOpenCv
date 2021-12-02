@@ -17,8 +17,13 @@ struct FrameData
     cv::Mat ushortData;
     QImage green;
     QImage gray;
+    double minValue;
+    double maxValue;
+
 
     void set(const cv::Mat &data);
+    void resetMinMax();
+    void setMinMax(double min, double max);
 };
 
 struct Project
@@ -91,6 +96,8 @@ public:
 
     void updateList();
 
+private:
+    void updateGrayTexture(FrameData *frameData);
 protected:
     bool eventFilter(QObject *obj, QEvent *event);
     void dropEvent(QDropEvent *event) override;
