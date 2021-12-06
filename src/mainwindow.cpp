@@ -10,6 +10,7 @@
 #include <QPainter>
 #include <QScrollBar>
 
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), ui(new Ui::MainWindow), currentFrameData(nullptr)
 {
@@ -123,7 +124,7 @@ MainWindow::~MainWindow()
 
 void MainWindow::onOpenAction()
 {
-    auto filename = QFileDialog::getOpenFileName(this, tr("Select Avi File"), "", "Avi files (*.avi)");
+    auto filename = QFileDialog::getOpenFileName(this, tr("Select Input File"), "", "Avi file (*.avi);;PNG file (*.avi)");
     if (filename.isEmpty())
         return;
     openFile(filename);
@@ -132,7 +133,16 @@ void MainWindow::onOpenAction()
 void MainWindow::openFile(const QString &filename)
 {
     project = std::make_unique<Project>();
-    project->loadFromAvi(filename.toStdString().c_str());
+    QFileInfo fileInfo(filename);
+    if (fileInfo.suffix() == "avi")
+    {
+        project->loadFromAvi(filename.toStdString().c_str());
+    }
+    else
+    {
+        project->loadFromPng({filename});
+    }
+
     updateList();
     setWindowTitle(tr("IR Data Analyser (%1)").arg(QFileInfo(filename).fileName()));
 }
@@ -237,6 +247,7 @@ void Project::loadFromAvi(const char *filename)
 
 void Project::loadFromPng(const std::vector<QString> &filenames)
 {
+    this->data.clear();
     for (auto &file : filenames)
     {
         cv::Mat data = cv::imread(file.toStdString().c_str(), cv::IMREAD_COLOR);
@@ -304,8 +315,8 @@ void MainWindow::setPosition(int x, int y)
     auto image = green->pixmap()->toImage();
     QRgb pixel = image.pixel(x, y);
     unsigned short value = 0;
-    value = (qRed(pixel) << 8);
-    value |= (qGreen(pixel) & 0x0F);
+    value = qRed(pixel) << 8;
+    value |= qGreen(pixel);
     ui->value->setText(QString::number(value));
     green->setPoiData(x, y, value);
     gray->setPoiData(x, y, value);
@@ -345,6 +356,7 @@ void MainWindow::setCurrentFrameData(FrameData *frameData)
     {
         green->setPixmap(QPixmap());
         gray->setPixmap(QPixmap());
+        currentFrameData = nullptr;
         ui->minRadians->setValue(0);
         ui->maxRadians->setValue(65535);
     }
@@ -379,7 +391,10 @@ void MainWindow::dropEvent(QDropEvent *event)
             }
             project->loadFromPng(files);
             updateList();
-            setWindowTitle(tr("IR Data Analyser (PNG)"));
+            if (files.size() > 1)
+                setWindowTitle(tr("IR Data Analyser (PNG)"));
+            if (files.size() == 1)
+                setWindowTitle(tr("IR Data Analyser (%1)").arg(files.at(0)));
         }
     }
 }

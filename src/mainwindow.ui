@@ -234,7 +234,7 @@
   </widget>
   <action name="actionOpen">
    <property name="text">
-    <string>Open Avi</string>
+    <string>Open File</string>
    </property>
   </action>
  </widget>
