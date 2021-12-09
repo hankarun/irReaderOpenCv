@@ -212,8 +212,8 @@ void FrameData::setMinMax(double min, double max)
     for (int r = 0; r < frameData.rows; ++r)
     {
         for (int c = 0; c < frameData.cols; ++c)
-        {
-            frameShortData.at<unsigned char>(r, c) = ((ushortData.at<unsigned short>(r, c) - minValue) / (maxValue - minValue)) * 255.0f;
+        {                        
+            frameShortData.at<unsigned char>(r, c) = std::min((ushortData.at<unsigned short>(r, c) - minValue) / (maxValue - minValue), 1.0) * 255.0f;
         }
     }
 }
