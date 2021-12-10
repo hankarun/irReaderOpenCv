@@ -34,7 +34,7 @@ MainWindow::MainWindow(QWidget *parent)
         QMessageBox messageBox;
         messageBox.setTextFormat(Qt::RichText);
         messageBox.setWindowTitle("About");
-        messageBox.setText("<a href=\"https://www.simsoft.com.tr/\"><b>Simsoft Lt. Aş.</b>(2021)</a><br><a href=\"https://github.com/hankarun/irReaderOpenCv\">Source</a>");
+        messageBox.setText("<a href=\"https://www.simsoft.com.tr/\"><b>Simsoft Lt. Aş.</b>(2021)</a>");
         messageBox.exec();
     });
 
