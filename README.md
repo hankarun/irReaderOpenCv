@@ -1,1 +1,1 @@
-# irReaderOpenCv
+# ir data analyser

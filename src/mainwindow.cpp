@@ -9,7 +9,7 @@
 #include <QMimeData>
 #include <QPainter>
 #include <QScrollBar>
-
+#include <QMessageBox>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), ui(new Ui::MainWindow), currentFrameData(nullptr)
@@ -28,6 +28,15 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(ui->grayScrollArea->horizontalScrollBar(), &QScrollBar::valueChanged, ui->greenScrollArea->horizontalScrollBar(), &QScrollBar::setValue);
     connect(ui->grayScrollArea->verticalScrollBar(), &QScrollBar::valueChanged, ui->greenScrollArea->verticalScrollBar(), &QScrollBar::setValue);
+
+    connect(ui->actionQuit, &QAction::triggered, &QApplication::quit);
+    connect(ui->actionAbout, &QAction::triggered, this, [](){
+        QMessageBox messageBox;
+        messageBox.setTextFormat(Qt::RichText);
+        messageBox.setWindowTitle("About");
+        messageBox.setText("<a href=\"https://www.simsoft.com.tr/\"><b>Simsoft Lt. Aş.</b>(2021)</a><br><a href=\"https://github.com/hankarun/irReaderOpenCv\">Source</a>");
+        messageBox.exec();
+    });
 
     ui->gridLayout->setColumnStretch(1, 1);
     ui->gridLayout->setColumnStretch(2, 1);
@@ -202,9 +211,10 @@ void FrameData::set(const cv::Mat &data)
 
 void FrameData::resetMinMax()
 {
-    cv::minMaxLoc(ushortData, &minValue, &maxValue);
+    cv::minMaxLoc(ushortData, &minValue, &maxValue, &minCoordinate, &maxCoordinate);
     setMinMax(minValue, maxValue);
 }
+
 void FrameData::setMinMax(double min, double max)
 {
     minValue = min;
@@ -354,6 +364,8 @@ void MainWindow::setCurrentFrameData(FrameData *frameData)
         currentFrameData = nullptr;
         ui->minRadians->setValue(frameData->minValue);
         ui->maxRadians->setValue(frameData->maxValue);
+        ui->minCoordinate->setText(QString("%1, %2").arg(frameData->minCoordinate.x).arg(frameData->minCoordinate.y));
+        ui->maxCoordinate->setText(QString("%1, %2").arg(frameData->maxCoordinate.x).arg(frameData->maxCoordinate.y));
         currentFrameData = frameData;
     }
     else

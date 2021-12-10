@@ -19,6 +19,8 @@ struct FrameData
     QImage gray;
     double minValue;
     double maxValue;
+    cv::Point minCoordinate;
+    cv::Point maxCoordinate;
 
 
     void set(const cv::Mat &data);
